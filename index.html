@@ -2,8 +2,8 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>行列 30 字根碼極速特訓 - 最終版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>行列 30 字根碼極速特訓 - 手機優化版</title>
     <style>
         :root { 
             --primary: #1e88e5; 
@@ -14,6 +14,11 @@
             --key-bg: #f1f5f9;
         }
         
+        html, body {
+            height: 100%;
+            height: -webkit-fill-available; /* 修正手機瀏覽器高度判定 */
+        }
+
         body { 
             font-family: "Microsoft JhengHei", -apple-system, sans-serif; 
             background: var(--bg); 
@@ -21,7 +26,6 @@
             flex-direction: column; 
             align-items: center; 
             margin: 0; 
-            height: 100vh; 
             overflow: hidden; 
             user-select: none;
             -webkit-tap-highlight-color: transparent;
@@ -30,7 +34,7 @@
         /* 頂部：計時器與提示開關 */
         .top-bar {
             width: 100%;
-            padding: 10px 0;
+            padding: 8px 0;
             display: flex;
             justify-content: space-around;
             align-items: center;
@@ -39,56 +43,55 @@
             z-index: 10;
         }
         
-        .timer-val { font-size: 28px; font-weight: bold; color: var(--primary); font-family: monospace; }
+        .timer-val { font-size: 24px; font-weight: bold; color: var(--primary); font-family: monospace; }
         
         .toggle-btn {
             background: #fff;
             border: 2px solid var(--primary);
             color: var(--primary);
-            padding: 6px 12px;
+            padding: 4px 10px;
             border-radius: 20px;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
             cursor: pointer;
-            transition: 0.2s;
         }
         .toggle-btn.off { background: #eee; border-color: #bbb; color: #999; }
 
-        /* 中間：題目區 (高度縮減以騰出空間給鍵盤) */
+        /* 中間：題目區 (大幅縮減高度) */
         .training-container {
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: center; /* 置中顯示 */
             width: 100%;
-            padding-bottom: 10px;
+            padding: 10px 0;
         }
 
-        .question-zone { height: 120px; display: flex; align-items: center; }
-        .root-text { font-size: 90px; font-weight: bold; }
-        .root-img { max-height: 110px; max-width: 110px; }
+        .question-zone { height: 100px; display: flex; align-items: center; }
+        .root-text { font-size: 80px; font-weight: bold; }
+        .root-img { max-height: 90px; max-width: 90px; }
 
-        .hint-text { margin: 5px 0; font-size: 20px; font-weight: bold; color: var(--text-hint); height: 30px; }
+        .hint-text { margin: 2px 0; font-size: 18px; font-weight: bold; color: var(--text-hint); height: 24px; }
         .hint-text.hidden { visibility: hidden; }
 
-        .input-display { display: flex; gap: 12px; margin: 10px 0; }
+        .input-display { display: flex; gap: 10px; margin: 5px 0; }
         .char-box {
-            width: 60px; height: 75px; border: 3px solid #bbdefb; border-radius: 12px;
-            font-size: 40px; font-weight: bold; color: var(--primary);
+            width: 55px; height: 70px; border: 3px solid #bbdefb; border-radius: 12px;
+            font-size: 36px; font-weight: bold; color: var(--primary);
             display: flex; align-items: center; justify-content: center; background: white;
         }
         .char-box.filled { border-color: var(--primary); background: #f0f8ff; }
 
-        /* 底部：數字鍵盤 (針對遮擋優化) */
+        /* 底部：數字鍵盤 (特別優化位置與墊高) */
         .numpad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            padding: 15px 15px 25px 15px; /* 底部加深墊高，防止被手勢列遮擋 */
+            gap: 8px;
+            padding: 15px 15px calc(env(safe-area-inset-bottom) + 50px) 15px; /* 墊高底部防遮擋 */
             background: var(--key-bg);
             width: 100%;
-            max-width: 380px;
+            max-width: 400px;
             border-radius: 25px 25px 0 0;
             box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
         }
@@ -97,8 +100,8 @@
             background: white;
             border: none;
             border-radius: 12px;
-            height: 60px; /* 稍微縮短高度以適配小螢幕 */
-            font-size: 28px;
+            height: 55px; /* 縮減按鈕高度 */
+            font-size: 26px;
             font-weight: bold;
             color: var(--primary);
             box-shadow: 0 3px 0 #cfd8dc;
@@ -107,13 +110,13 @@
             justify-content: center;
         }
         
-        .num-btn:active { transform: translateY(3px); box-shadow: 0 0 0 transparent; background: #e3f2fd; }
+        .num-btn:active { transform: translateY(2px); box-shadow: 0 0 0 transparent; background: #e3f2fd; }
         .num-btn.special { color: #546e7a; background: #eceff1; }
 
         @keyframes errorFlash {
             0%, 100% { border-color: #bbdefb; transform: translateX(0); }
-            20%, 60% { border-color: var(--error); transform: translateX(-5px); }
-            40%, 80% { border-color: var(--error); transform: translateX(5px); }
+            20%, 60% { border-color: var(--error); transform: translateX(-4px); }
+            40%, 80% { border-color: var(--error); transform: translateX(4px); }
         }
         .error-anim { animation: errorFlash 0.4s ease; }
     </style>
@@ -122,13 +125,13 @@
 
 <div class="top-bar">
     <div class="timer-val" id="timer">00:00</div>
-    <div style="font-size: 12px; color: #999;" id="timer-status">等待中</div>
+    <div style="font-size: 11px; color: #999;" id="timer-status">等待中</div>
     <button class="toggle-btn" id="toggle-hint" onclick="toggleHint()">👁️ 提示: ON</button>
 </div>
 
 <div class="training-container">
     <div class="question-zone" id="question-zone">
-        <span class="root-text" style="font-size: 24px; color: #ccc;">載入中...</span>
+        <span class="root-text" style="font-size: 20px; color: #ccc;">載入中...</span>
     </div>
     
     <div class="hint-text" id="hint-text">字根碼：--</div>
@@ -155,15 +158,14 @@
 </div>
 
 <script>
-    // 題庫資料 (延用先前的精確題庫)
     const quizData = [
         { code: '10', items: ['10可.png'] }, { code: '11', items: ['工', '11長.png', '11龍.png'] },
-        { code: '12', items: ['七', '匕', '匚', '12它.png', '12毛.png', '12瓦.png', '12東.png'] },
+        { code: '12', items: ['七', '匕', '匚', '12它.png', '12毛.png', '12越.png', '12瓦.png', '12長.png', '12東.png'] },
         { code: '13', items: ['13韋.png'] }, { code: '14', items: ['車', '14甫.png', '14曹.png', '14年.png'] },
         { code: '1-', items: ['一', '㇀'] }, { code: '16', items: ['不', '镸', 'ㄊ', '16母.png', '16惠.png'] },
         { code: '18', items: ['大', '夫', '雨', '18春.png'] }, { code: '19', items: ['厂', '19尤.png', '19看.png', '19壽.png'] },
         { code: '21', items: ['女', '彑', '丱'] }, { code: '22', items: ['22巛.png', '22鼠.png'] },
-        { code: '2-', items: ['乙', '⺄', '乚', '㇗', '㇛', '㇙', '㇂', '几', '兒', '2-殳.png', '2-足.png'] },
+        { code: '2-', items: ['乙', '⺄', '乚', '㇗', '㇛', '㇙', '㇂', '幾', '兒', '2-殳.png', '2-足.png'] },
         { code: '25', items: ['25母.png'] }, { code: '26', items: ['風', 'ㄠ', '厶', '26戈.png', '26弋.png', '26瓜.png'] },
         { code: '28', items: ['糸', '纟', '28衣.png'] }, { code: '29', items: ['爿', '29亥.png', '29戈.png', '29發.png'] },
         { code: '31', items: ['門', '止', '⺊', '31耳.png', '31囬.png', '31假.png', '31官.png', '31北.png'] },
@@ -175,7 +177,7 @@
         { code: '42', items: ['42帶.png'] }, { code: '4-', items: ['十', '艹', '卄', '廾', '卅', '4-奉.png', '4-子.png'] },
         { code: '47', items: ['47壺.png'] }, { code: '48', items: ['木', '48沭.png'] },
         { code: '51', items: ['彐', '51尹.png', '51巳.png', '51五.png'] }, { code: '53', items: ['阝', '53皮.png'] },
-        { code: '55', items: ['55鼎.png', '55马.png'] }, { code: '5-', items: ['石', '戶', '5-馬.png'] },
+        { code: '55', items: ['55鼎.png', '55馬.png'] }, { code: '5-', items: ['石', '戶', '5-馬.png'] },
         { code: '56', items: ['マ', 'ス', '56即.png'] }, { code: '58', items: ['又', '廴', '癶', '58永.png', '58羽.png'] },
         { code: '59', items: ['力', '尸', '59眉.png'] }, { code: '60', items: ['言', '60贏.png'] },
         { code: '61', items: ['立', '亠', '61隹.png'] }, { code: '62', items: ['讠'] },
@@ -185,13 +187,13 @@
         { code: '69', items: ['廣', '69產.png'] }, { code: '71', items: ['月', '⺼', '皿', '71直.png'] },
         { code: '74', items: ['74魚.png'] }, { code: '7-', items: ['冂', '冖', '刀', '目', '角', '7-久.png'] },
         { code: '76', items: ['夕', '禸', '76祭.png'] }, { code: '77', items: ['77冎.png'] },
-        { code: '78', items: ['貝', '贝'] }, { code: '81', items: ['金', '81合.png', '81今.png'] },
+        { code: '78', items: ['貝', '貝'] }, { code: '81', items: ['金', '81合.png', '81今.png'] },
         { code: '82', items: ['钅'] }, { code: '83', items: ['83齒.png'] },
         { code: '84', items: ['半', '84平.png'] }, { code: '8-', items: ['八', '人', '亻', '冫', '8-立.png'] },
         { code: '88', items: ['火', '灬', '米', '88㡀.png'] },
         { code: '91', items: ['臼', '91叟.png', '91生.png', '91告.png'] }, { code: '92', items: ['氣', '92鬼.png', '92流.png'] },
         { code: '93', items: ['斤', '93丘.png'] }, { code: '94', items: ['手', '94扌.png', '94拜.png'] },
-        { code: '95', items: ['勹', '95鳥.png', '95乌.png'] }, { code: '9-', items: ['㇒', '竹'] },
+        { code: '95', items: ['勹', '95鳥.png', '95馬.png'] }, { code: '9-', items: ['㇒', '竹'] },
         { code: '98', items: ['彳', '攵', '夂', '乂', '98豕.png'] }, { code: '99', items: ['身', '豸', '爫', '彡', '99犭.png'] },
         { code: '01', items: ['日', '曰', '01酉.png'] }, { code: '03', items: ['03串.png'] },
         { code: '04', items: ['田', '囗'] }, { code: '0-', items: ['口'] },
@@ -229,7 +231,7 @@
         uiDisplay.innerHTML = '';
         if(currentQ.content.endsWith('.png')) {
             const img = document.createElement('img'); img.src = currentQ.content; img.className = 'root-img';
-            img.onerror = () => uiDisplay.innerHTML = `<span style="font-size:16px;color:red">圖片遺失</span>`;
+            img.onerror = () => uiDisplay.innerHTML = `<span style="font-size:14px;color:red">圖片遺失</span>`;
             uiDisplay.appendChild(img);
         } else { uiDisplay.innerHTML = `<span class="root-text">${currentQ.content}</span>`; }
         uiHint.textContent = `字根碼：${currentQ.answer}`;
@@ -243,13 +245,12 @@
 
     function handleInput(val) {
         if(isAnimating) return;
-        
         if(isIdle) {
-            isIdle = false; timerStat.textContent = "練習中⚡";
+            isIdle = false; timerStat.textContent = "⚡";
             if(!timerInterval) timerInterval = setInterval(() => { if(!isIdle) { practiceTime++; updateTimer(); } }, 1000);
         }
         clearTimeout(idleTimeout);
-        idleTimeout = setTimeout(() => { isIdle = true; timerStat.textContent = "暫停中⏸️"; }, 3000);
+        idleTimeout = setTimeout(() => { isIdle = true; timerStat.textContent = "⏸️"; }, 3000);
 
         if (currentInput.length < 2) {
             currentInput += val;
@@ -261,7 +262,7 @@
     function check() {
         isAnimating = true;
         if (currentInput === currentQ.answer) {
-            setTimeout(() => { nextQuestion(); isAnimating = false; }, 150);
+            setTimeout(() => { nextQuestion(); isAnimating = false; }, 120);
         } else {
             boxes.forEach(b => b.classList.add('error-anim'));
             setTimeout(() => {
