@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>行列 30 字根碼極速特訓</title>
+    <style>
+        /* 藍白極簡風格 */
+        :root { 
+            --primary: #1e88e5; /* 乾淨的科技藍 */
+            --bg: #ffffff;      /* 純白背景 */
+            --text-main: #333333;
+            --text-hint: #64b5f6; /* 柔和的淺藍提示 */
+            --error: #e53935;
+        }
+        
+        body { 
+            font-family: "Microsoft JhengHei", -apple-system, sans-serif; 
+            background: var(--bg); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 0; 
+            margin: 0; 
+            height: 100vh; 
+            overflow: hidden; 
+            color: var(--text-main);
+        }
+        
+        /* 隱藏密碼框：強制攔截輸入法 */
+        #ime-bypass { position: absolute; opacity: 0; top: -100px; left: -100px; width: 1px; height: 1px; z-index: -1; }
+
+        /* 頂部狀態列：智慧計時器 */
+        .top-bar {
+            width: 100%;
+            padding: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            background: #f8fbff; /* 極淡的藍色，區隔頂部 */
+        }
+        
+        .timer-display { font-size: 32px; font-weight: bold; color: var(--primary); font-family: monospace; letter-spacing: 2px; }
+        .timer-status { font-size: 16px; font-weight: bold; padding: 4px 12px; border-radius: 20px; transition: 0.3s; }
+        .status-active { background: #e3f2fd; color: var(--primary); }
+        .status-paused { background: #ffebee; color: var(--error); }
+
+        /* 主訓練區塊 */
+        .training-container {
+            margin-top: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 題目顯示 (超大字體或圖片) */
+        .question-zone {
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .root-text { font-size: 140px; font-weight: bold; color: var(--text-main); }
+        .root-img { max-height: 160px; max-width: 160px; object-fit: contain; }
+
+        /* 溫和的字根碼提示 */
+        .hint-text {
+            margin-top: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-hint);
+            letter-spacing: 2px;
+        }
+
+        /* 2 碼輸入顯示區 */
+        .input-zone {
+            margin-top: 40px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .char-box {
+            width: 80px;
+            height: 100px;
+            border: 4px solid #bbdefb;
+            border-radius: 16px;
+            font-size: 60px;
+            font-weight: bold;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: monospace;
+            background: white;
+            transition: 0.2s;
+            box-shadow: 0 4px 15px rgba(30, 136, 229, 0.1);
+        }
+        
+        .char-box.filled { border-color: var(--primary); background: #f0f8ff; transform: scale(1.05); }
+        
+        /* 錯誤閃爍動畫 */
+        @keyframes errorFlash {
+            0%, 100% { border-color: #bbdefb; background: white; transform: translateX(0); }
+            20%, 60% { border-color: var(--error); background: #ffebee; transform: translateX(-5px); color: var(--error); }
+            40%, 80% { border-color: var(--error); background: #ffebee; transform: translateX(5px); color: var(--error); }
+        }
+        .error-anim { animation: errorFlash 0.4s ease; }
+
+        .instruction {
+            margin-top: 60px;
+            color: #90caf9;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<input type="password" id="ime-bypass" autocomplete="off">
+
+<div class="top-bar">
+    <div class="timer-display" id="timer">00:00</div>
+    <div class="timer-status status-paused" id="timer-status">[ 等待敲擊 ]</div>
+</div>
+
+<div class="training-container">
+    <div class="question-zone" id="question-zone">
+        <span class="root-text" style="font-size: 50px; color: #ccc;">載入中...</span>
+    </div>
+    
+    <div class="hint-text" id="hint-text">字根碼：--</div>
+
+    <div class="input-zone">
+        <div class="char-box" id="box-0"></div>
+        <div class="char-box" id="box-1"></div>
+    </div>
+</div>
+
+<div class="instruction">
+    💡 提示：請直接輸入數字或短橫線 (-)，打完 2 碼將自動送出
+</div>
+
+<script>
+    // ==========================================
+    // 1. 精確版字根題庫 (完全符合行列 30)
+    // ==========================================
+    const exactRoots = [
+        { code: '10', items: ['10可.png'] },
+        { code: '11', items: ['工', '11長.png', '11龍.png'] },
+        { code: '12', items: ['七', '匕', '匚', '12它.png', '12毛.png', '12越.png', '12瓦.png', '12长.png', '12東.png'] },
+        { code: '13', items: ['13韋.png'] },
+        { code: '14', items: ['車', '14甫.png', '14曹.png', '14年.png'] },
+        { code: '1-', items: ['一', '㇀'] },
+        { code: '16', items: ['不', '镸', 'ㄊ', '16母.png', '16惠.png', '16充.png'] },
+        { code: '18', items: ['大', '夫', '雨', '18春.png'] },
+        { code: '19', items: ['厂', '19尤.png', '19看.png', '19寿.png', '19與.png'] },
+        { code: '21', items: ['女', '彑', '丱'] },
+        { code: '22', items: ['22巛.png', '22鼠.png', '22巜.png'] },
+        { code: '2-', items: ['乙', '⺄', '乚', '㇗', '㇛', '㇙', '㇂', '几', '儿', '2-殳.png', '2-冘.png', '2-足.png'] },
+        { code: '25', items: ['25母.png'] },
+        { code: '26', items: ['風', 'ㄠ', '厶', '26戈.png', '26弋.png', '26瓜.png', '26以.png'] },
+        { code: '28', items: ['糸', '纟', '28衣.png'] },
+        { code: '29', items: ['爿', '29亥.png', '29戈.png', '29發.png'] },
+        { code: '31', items: ['門', '止', '⺊', '31耳.png', '31囬.png', '31假.png', '31官.png', '31北.png', '31非左.png', '31非右.png', '31乍.png'] },
+        { code: '32', items: ['虍'] },
+        { code: '33', items: ['鬥', '刂', '33淵.png', '33亞.png', '33介.png', '33而.png', '33归.png'] },
+        { code: '35', items: ['片', '35凹.png', '35凸.png'] },
+        { code: '3-', items: ['丨', '丿', '亅', '山', '屮', '凵', '3-屮日.png'] },
+        { code: '36', items: ['卜', '⺗'] },
+        { code: '38', items: ['水', '氵', '氺', '小', '⺌', '38並.png', '38亦.png', '38眔.png', '38龰.png'] },
+        { code: '39', items: ['39步.png'] },
+        { code: '40', items: ['40革.png'] },
+        { code: '41', items: ['土', '士', '廿', '41青.png', '41黃.png', '41共.png', '41其.png', '41冓.png', '41無.png'] },
+        { code: '42', items: ['42帶.png'] },
+        { code: '4-', items: ['十', '艹', '卄', '廾', '卅', '4-奉.png', '4-丰簡.png', '4-子.png', '4-孑.png'] },
+        { code: '47', items: ['47壺.png'] },
+        { code: '48', items: ['木', '48沭.png'] },
+        { code: '51', items: ['彐', '51尹.png', '51彐日.png', '51巳.png', '51夬.png', '51五.png'] },
+        { code: '53', items: ['阝', '53皮.png'] },
+        { code: '55', items: ['55鼎.png', '55马.png'] },
+        { code: '5-', items: ['㇡', '㇉', '㇞', '㇖', '㇆', '㇕', '石', '戶', '5-馬.png'] },
+        { code: '56', items: ['マ', 'ス', '56即.png', '56专.png'] },
+        { code: '58', items: ['又', '廴', '癶', '58永.png', '58羽.png', '58練.png'] },
+        { code: '59', items: ['力', '尸', '59眉.png'] },
+        { code: '60', items: ['言', '60贏.png'] },
+        { code: '61', items: ['立', '亠', '61隹.png', '61鹿.png'] },
+        { code: '62', items: ['讠'] },
+        { code: '63', items: ['63神.png'] },
+        { code: '65', items: ['方'] },
+        { code: '6-', items: ['丶', '⺀', '疒'] },
+        { code: '66', items: ['心', '66忄.png'] },
+        { code: '67', items: ['宀'] },
+        { code: '68', items: ['之', '辶'] },
+        { code: '69', items: ['广', '69產.png', '69产.png', '69兴.png'] },
+        { code: '71', items: ['月', '⺼', '皿', '71直.png', '71且.png'] },
+        { code: '74', items: ['74魚.png'] },
+        { code: '7-', items: ['冂', '冖', '⺈', '刀', '卩', '目', '角', '7-久.png', '7-角.png'] },
+        { code: '76', items: ['夕', '禸', '76祭.png', '76舟.png'] },
+        { code: '77', items: ['77冎.png'] },
+        { code: '78', items: ['貝', '贝'] },
+        { code: '81', items: ['金', '81合.png', '81今.png', '81䒑.png'] },
+        { code: '82', items: ['钅'] },
+        { code: '83', items: ['83齒.png', '83齿.png'] },
+        { code: '84', items: ['半', '84平.png', '84乎.png'] },
+        { code: '8-', items: ['八', 'ㄦ', '人', '入', '亻', '冫', '㇏', '8-全簡.png', '8-立.png', '8-承.png'] },
+        { code: '88', items: ['火', '灬', '米', '88㡀.png', '88求.png'] },
+        { code: '91', items: ['臼', '91叟.png', '91與.png', '91段.png', '91印.png', '91生.png', '91告.png', '91重.png', '91微.png'] },
+        { code: '92', items: ['气', '92鬼.png', '92流.png', '92氏.png', '92乐.png'] },
+        { code: '93', items: ['斤', '93丘.png'] },
+        { code: '94', items: ['手', '94扌.png', '94拜.png'] },
+        { code: '95', items: ['勹', '95鳥.png', '95鸟.png', '95烏.png', '95乌.png', '95方.png'] },
+        { code: '9-', items: ['㇒', '竹'] },
+        { code: '98', items: ['彳', '攵', '夂', '乂', '98豕.png', '98乑.png'] },
+        { code: '99', items: ['身', '豸', '爫', '⺁', '彡', '99犭.png', '99勿.png'] },
+        { code: '01', items: ['日', '曰', '⺜', '01婁.png', '01酉.png', '01黑.png'] },
+        { code: '03', items: ['03串.png'] },
+        { code: '04', items: ['田', '囗'] },
+        { code: '0-', items: ['口'] },
+        { code: '06', items: ['虫'] },
+        { code: '08', items: ['四', '罒', '08西.png', '08覀.png', '08溫.png', '08曾.png', '08會.png'] }
+    ];
+
+    let quizList = [];
+    exactRoots.forEach(group => {
+        group.items.forEach(item => {
+            quizList.push({ content: item, answer: group.code });
+        });
+    });
+
+    // ==========================================
+    // 2. 系統狀態與計時器變數
+    // ==========================================
+    let currentQ = null;
+    let currentInput = ""; // 最多存 2 碼
+    let practiceTime = 0;
+    let timerInterval = null;
+    let idleTimeout = null;
+    let isIdle = true;
+    let isAnimating = false;
+
+    const uiDisplay = document.getElementById('question-zone');
+    const uiHint = document.getElementById('hint-text');
+    const box0 = document.getElementById('box-0');
+    const box1 = document.getElementById('box-1');
+    const timerDisplay = document.getElementById('timer');
+    const timerStatus = document.getElementById('timer-status');
+    const imeBypass = document.getElementById('ime-bypass');
+
+    // 強制焦點，攔截輸入法
+    function forceFocus() { imeBypass.focus(); }
+    document.addEventListener('click', forceFocus);
+    setInterval(forceFocus, 1000);
+
+    // ==========================================
+    // 3. 遊戲邏輯與渲染
+    // ==========================================
+    function initGame() {
+        forceFocus();
+        nextQuestion();
+    }
+
+    function nextQuestion() {
+        currentInput = "";
+        updateBoxes();
+        
+        currentQ = quizList[Math.floor(Math.random() * quizList.length)];
+        
+        // 渲染題目
+        uiDisplay.innerHTML = '';
+        if(currentQ.content.endsWith('.png')) {
+            const img = document.createElement('img');
+            img.src = currentQ.content; 
+            img.className = 'root-img';
+            img.onerror = () => uiDisplay.innerHTML = `<span style="font-size:16px;color:red">找不到圖片: ${currentQ.content}</span>`;
+            uiDisplay.appendChild(img);
+        } else {
+            uiDisplay.innerHTML = `<span class="root-text">${currentQ.content}</span>`;
+        }
+        
+        // 渲染提示
+        uiHint.textContent = `字根碼：${currentQ.answer}`;
+    }
+
+    function updateBoxes() {
+        box0.textContent = currentInput[0] || "";
+        box1.textContent = currentInput[1] || "";
+        
+        // 加上藍色填滿特效
+        currentInput.length > 0 ? box0.classList.add('filled') : box0.classList.remove('filled');
+        currentInput.length > 1 ? box1.classList.add('filled') : box1.classList.remove('filled');
+    }
+
+    function updateTimerUI() {
+        let m = Math.floor(practiceTime / 60).toString().padStart(2, '0');
+        let s = (practiceTime % 60).toString().padStart(2, '0');
+        timerDisplay.textContent = `${m}:${s}`;
+    }
+
+    // ==========================================
+    // 4. 按鍵監聽 (純數字與橫線)
+    // ==========================================
+    imeBypass.addEventListener('keydown', (e) => {
+        if(e.ctrlKey || e.altKey || e.metaKey || isAnimating) return;
+        
+        const key = e.key;
+        // 只允許 0-9 與 - (減號/橫線)
+        if (!/^[0-9\-]$/.test(key)) {
+            e.preventDefault();
+            return;
+        }
+        
+        e.preventDefault();
+        imeBypass.value = '';
+
+        // --- 智慧計時器處理 ---
+        if(isIdle) {
+            isIdle = false;
+            timerStatus.className = 'timer-status status-active';
+            timerStatus.textContent = "打字中 ⚡";
+            if(!timerInterval) {
+                timerInterval = setInterval(() => {
+                    if(!isIdle) { practiceTime++; updateTimerUI(); }
+                }, 1000);
+            }
+        }
+        
+        clearTimeout(idleTimeout);
+        idleTimeout = setTimeout(() => {
+            isIdle = true;
+            timerStatus.className = 'timer-status status-paused';
+            timerStatus.textContent = "[ 暫停中 ⏸️ ]";
+        }, 3000); // 3 秒沒按鍵就暫停
+
+        // --- 輸入與比對邏輯 ---
+        if (currentInput.length < 2) {
+            currentInput += key;
+            updateBoxes();
+        }
+
+        if (currentInput.length === 2) {
+            isAnimating = true; // 鎖定輸入防連按
+            
+            if (currentInput === currentQ.answer) {
+                // 打對了：給一點點微秒延遲讓人看到輸入的字，然後馬上換題
+                setTimeout(() => {
+                    nextQuestion();
+                    isAnimating = false;
+                }, 150); 
+            } else {
+                // 打錯了：觸發紅框閃爍
+                box0.classList.add('error-anim');
+                box1.classList.add('error-anim');
+                
+                setTimeout(() => {
+                    box0.classList.remove('error-anim');
+                    box1.classList.remove('error-anim');
+                    currentInput = "";
+                    updateBoxes();
+                    isAnimating = false;
+                }, 400); // 閃爍 0.4 秒後清空重來
+            }
+        }
+    });
+
+    // 啟動程式
+    window.onload = initGame;
+</script>
+
+</body>
+</html>
