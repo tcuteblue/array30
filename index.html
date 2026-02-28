@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>行列 30 字根碼極速特訓 - 手機優化版</title>
+    <style>
+        :root { 
+            --primary: #1e88e5; 
+            --bg: #ffffff;      
+            --text-main: #333333;
+            --text-hint: #64b5f6;
+            --error: #e74c3c;
+            --key-bg: #f1f5f9;
+        }
+        
+        html, body {
+            height: 100%;
+            height: -webkit-fill-available; /* 修正手機瀏覽器高度判定 */
+        }
+
+        body { 
+            font-family: "Microsoft JhengHei", -apple-system, sans-serif; 
+            background: var(--bg); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            margin: 0; 
+            overflow: hidden; 
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* 頂部：計時器與提示開關 */
+        .top-bar {
+            width: 100%;
+            padding: 8px 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: #f8fbff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+        
+        .timer-val { font-size: 24px; font-weight: bold; color: var(--primary); font-family: monospace; }
+        
+        .toggle-btn {
+            background: #fff;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .toggle-btn.off { background: #eee; border-color: #bbb; color: #999; }
+
+        /* 中間：題目區 (大幅縮減高度) */
+        .training-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* 置中顯示 */
+            width: 100%;
+            padding: 10px 0;
+        }
+
+        .question-zone { height: 100px; display: flex; align-items: center; }
+        .root-text { font-size: 80px; font-weight: bold; }
+        .root-img { max-height: 90px; max-width: 90px; }
+
+        .hint-text { margin: 2px 0; font-size: 18px; font-weight: bold; color: var(--text-hint); height: 24px; }
+        .hint-text.hidden { visibility: hidden; }
+
+        .input-display { display: flex; gap: 10px; margin: 5px 0; }
+        .char-box {
+            width: 55px; height: 70px; border: 3px solid #bbdefb; border-radius: 12px;
+            font-size: 36px; font-weight: bold; color: var(--primary);
+            display: flex; align-items: center; justify-content: center; background: white;
+        }
+        .char-box.filled { border-color: var(--primary); background: #f0f8ff; }
+
+        /* 底部：數字鍵盤 (特別優化位置與墊高) */
+        .numpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 15px 15px calc(env(safe-area-inset-bottom) + 50px) 15px; /* 墊高底部防遮擋 */
+            background: var(--key-bg);
+            width: 100%;
+            max-width: 400px;
+            border-radius: 25px 25px 0 0;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
+        }
+        
+        .num-btn {
+            background: white;
+            border: none;
+            border-radius: 12px;
+            height: 55px; /* 縮減按鈕高度 */
+            font-size: 26px;
+            font-weight: bold;
+            color: var(--primary);
+            box-shadow: 0 3px 0 #cfd8dc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .num-btn:active { transform: translateY(2px); box-shadow: 0 0 0 transparent; background: #e3f2fd; }
+        .num-btn.special { color: #546e7a; background: #eceff1; }
+
+        @keyframes errorFlash {
+            0%, 100% { border-color: #bbdefb; transform: translateX(0); }
+            20%, 60% { border-color: var(--error); transform: translateX(-4px); }
+            40%, 80% { border-color: var(--error); transform: translateX(4px); }
+        }
+        .error-anim { animation: errorFlash 0.4s ease; }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="timer-val" id="timer">00:00</div>
+    <div style="font-size: 11px; color: #999;" id="timer-status">等待中</div>
+    <button class="toggle-btn" id="toggle-hint" onclick="toggleHint()">👁️ 提示: ON</button>
+</div>
+
+<div class="training-container">
+    <div class="question-zone" id="question-zone">
+        <span class="root-text" style="font-size: 20px; color: #ccc;">載入中...</span>
+    </div>
+    
+    <div class="hint-text" id="hint-text">字根碼：--</div>
+
+    <div class="input-display">
+        <div class="char-box" id="box-0"></div>
+        <div class="char-box" id="box-1"></div>
+    </div>
+</div>
+
+<div class="numpad">
+    <button class="num-btn" onclick="handleInput('1')">1</button>
+    <button class="num-btn" onclick="handleInput('2')">2</button>
+    <button class="num-btn" onclick="handleInput('3')">3</button>
+    <button class="num-btn" onclick="handleInput('4')">4</button>
+    <button class="num-btn" onclick="handleInput('5')">5</button>
+    <button class="num-btn" onclick="handleInput('6')">6</button>
+    <button class="num-btn" onclick="handleInput('7')">7</button>
+    <button class="num-btn" onclick="handleInput('8')">8</button>
+    <button class="num-btn" onclick="handleInput('9')">9</button>
+    <button class="num-btn special" onclick="handleInput('-')">-</button>
+    <button class="num-btn" onclick="handleInput('0')">0</button>
+    <button class="num-btn special" onclick="clearCurrent()">C</button>
+</div>
+
+<script>
+    const quizData = [
+        { code: '10', items: ['10可.png'] }, { code: '11', items: ['工', '11長.png', '11龍.png'] },
+        { code: '12', items: ['七', '匕', '匚', '12它.png', '12毛.png', '12越.png', '12瓦.png', '12長.png', '12東.png'] },
+        { code: '13', items: ['13韋.png'] }, { code: '14', items: ['車', '14甫.png', '14曹.png', '14年.png'] },
+        { code: '1-', items: ['一', '㇀'] }, { code: '16', items: ['不', '镸', 'ㄊ', '16母.png', '16惠.png'] },
+        { code: '18', items: ['大', '夫', '雨', '18春.png'] }, { code: '19', items: ['厂', '19尤.png', '19看.png', '19壽.png'] },
+        { code: '21', items: ['女', '彑', '丱'] }, { code: '22', items: ['22巛.png', '22鼠.png'] },
+        { code: '2-', items: ['乙', '⺄', '乚', '㇗', '㇛', '㇙', '㇂', '幾', '兒', '2-殳.png', '2-足.png'] },
+        { code: '25', items: ['25母.png'] }, { code: '26', items: ['風', 'ㄠ', '厶', '26戈.png', '26弋.png', '26瓜.png'] },
+        { code: '28', items: ['糸', '纟', '28衣.png'] }, { code: '29', items: ['爿', '29亥.png', '29戈.png', '29發.png'] },
+        { code: '31', items: ['門', '止', '⺊', '31耳.png', '31囬.png', '31假.png', '31官.png', '31北.png'] },
+        { code: '32', items: ['虍'] }, { code: '33', items: ['鬥', '刂', '33淵.png', '33亞.png', '33而.png'] },
+        { code: '35', items: ['片', '35凹.png', '35凸.png'] }, { code: '3-', items: ['丨', '丿', '山', '屮', '凵', '3-屮日.png'] },
+        { code: '36', items: ['卜', '⺗'] }, { code: '38', items: ['水', '氵', '氺', '小', '⺌', '38並.png', '38亦.png', '38龰.png'] },
+        { code: '39', items: ['39步.png'] }, { code: '40', items: ['40革.png'] },
+        { code: '41', items: ['土', '士', '廿', '41青.png', '41黃.png', '41共.png', '41其.png'] },
+        { code: '42', items: ['42帶.png'] }, { code: '4-', items: ['十', '艹', '卄', '廾', '卅', '4-奉.png', '4-子.png'] },
+        { code: '47', items: ['47壺.png'] }, { code: '48', items: ['木', '48沭.png'] },
+        { code: '51', items: ['彐', '51尹.png', '51巳.png', '51五.png'] }, { code: '53', items: ['阝', '53皮.png'] },
+        { code: '55', items: ['55鼎.png', '55馬.png'] }, { code: '5-', items: ['石', '戶', '5-馬.png'] },
+        { code: '56', items: ['マ', 'ス', '56即.png'] }, { code: '58', items: ['又', '廴', '癶', '58永.png', '58羽.png'] },
+        { code: '59', items: ['力', '尸', '59眉.png'] }, { code: '60', items: ['言', '60贏.png'] },
+        { code: '61', items: ['立', '亠', '61隹.png'] }, { code: '62', items: ['讠'] },
+        { code: '63', items: ['63神.png'] }, { code: '65', items: ['方'] },
+        { code: '6-', items: ['丶', '⺀', '疒'] }, { code: '66', items: ['心', '66忄.png'] },
+        { code: '67', items: ['宀'] }, { code: '68', items: ['之', '辶'] },
+        { code: '69', items: ['廣', '69產.png'] }, { code: '71', items: ['月', '⺼', '皿', '71直.png'] },
+        { code: '74', items: ['74魚.png'] }, { code: '7-', items: ['冂', '冖', '刀', '目', '角', '7-久.png'] },
+        { code: '76', items: ['夕', '禸', '76祭.png'] }, { code: '77', items: ['77冎.png'] },
+        { code: '78', items: ['貝', '貝'] }, { code: '81', items: ['金', '81合.png', '81今.png'] },
+        { code: '82', items: ['钅'] }, { code: '83', items: ['83齒.png'] },
+        { code: '84', items: ['半', '84平.png'] }, { code: '8-', items: ['八', '人', '亻', '冫', '8-立.png'] },
+        { code: '88', items: ['火', '灬', '米', '88㡀.png'] },
+        { code: '91', items: ['臼', '91叟.png', '91生.png', '91告.png'] }, { code: '92', items: ['氣', '92鬼.png', '92流.png'] },
+        { code: '93', items: ['斤', '93丘.png'] }, { code: '94', items: ['手', '94扌.png', '94拜.png'] },
+        { code: '95', items: ['勹', '95鳥.png', '95馬.png'] }, { code: '9-', items: ['㇒', '竹'] },
+        { code: '98', items: ['彳', '攵', '夂', '乂', '98豕.png'] }, { code: '99', items: ['身', '豸', '爫', '彡', '99犭.png'] },
+        { code: '01', items: ['日', '曰', '01酉.png'] }, { code: '03', items: ['03串.png'] },
+        { code: '04', items: ['田', '囗'] }, { code: '0-', items: ['口'] },
+        { code: '06', items: ['虫'] }, { code: '08', items: ['四', '罒', '08西.png', '08曾.png'] }
+    ];
+
+    let fullQuizList = [];
+    quizData.forEach(g => g.items.forEach(i => fullQuizList.push({ content: i, answer: g.code })));
+
+    let currentQ = null, currentInput = "", practiceTime = 0;
+    let timerInterval = null, idleTimeout = null, isIdle = true, isAnimating = false;
+    let hintOn = true;
+
+    const uiDisplay = document.getElementById('question-zone'), uiHint = document.getElementById('hint-text');
+    const boxes = [document.getElementById('box-0'), document.getElementById('box-1')];
+    const timerVal = document.getElementById('timer'), timerStat = document.getElementById('timer-status');
+    const toggleBtn = document.getElementById('toggle-hint');
+
+    function toggleHint() {
+        hintOn = !hintOn;
+        if(hintOn) {
+            uiHint.classList.remove('hidden');
+            toggleBtn.textContent = "👁️ 提示: ON";
+            toggleBtn.classList.remove('off');
+        } else {
+            uiHint.classList.add('hidden');
+            toggleBtn.textContent = "👁️ 提示: OFF";
+            toggleBtn.classList.add('off');
+        }
+    }
+
+    function nextQuestion() {
+        currentInput = ""; updateUI();
+        currentQ = fullQuizList[Math.floor(Math.random() * fullQuizList.length)];
+        uiDisplay.innerHTML = '';
+        if(currentQ.content.endsWith('.png')) {
+            const img = document.createElement('img'); img.src = currentQ.content; img.className = 'root-img';
+            img.onerror = () => uiDisplay.innerHTML = `<span style="font-size:14px;color:red">圖片遺失</span>`;
+            uiDisplay.appendChild(img);
+        } else { uiDisplay.innerHTML = `<span class="root-text">${currentQ.content}</span>`; }
+        uiHint.textContent = `字根碼：${currentQ.answer}`;
+    }
+
+    function updateUI() {
+        boxes[0].textContent = currentInput[0] || ""; boxes[1].textContent = currentInput[1] || "";
+        currentInput.length > 0 ? boxes[0].classList.add('filled') : boxes[0].classList.remove('filled');
+        currentInput.length > 1 ? boxes[1].classList.add('filled') : boxes[1].classList.remove('filled');
+    }
+
+    function handleInput(val) {
+        if(isAnimating) return;
+        if(isIdle) {
+            isIdle = false; timerStat.textContent = "⚡";
+            if(!timerInterval) timerInterval = setInterval(() => { if(!isIdle) { practiceTime++; updateTimer(); } }, 1000);
+        }
+        clearTimeout(idleTimeout);
+        idleTimeout = setTimeout(() => { isIdle = true; timerStat.textContent = "⏸️"; }, 3000);
+
+        if (currentInput.length < 2) {
+            currentInput += val;
+            updateUI();
+            if (currentInput.length === 2) check();
+        }
+    }
+
+    function check() {
+        isAnimating = true;
+        if (currentInput === currentQ.answer) {
+            setTimeout(() => { nextQuestion(); isAnimating = false; }, 120);
+        } else {
+            boxes.forEach(b => b.classList.add('error-anim'));
+            setTimeout(() => {
+                boxes.forEach(b => b.classList.remove('error-anim'));
+                currentInput = ""; updateUI(); isAnimating = false;
+            }, 400);
+        }
+    }
+
+    function clearCurrent() { currentInput = ""; updateUI(); }
+    function updateTimer() {
+        let m = Math.floor(practiceTime / 60).toString().padStart(2, '0');
+        let s = (practiceTime % 60).toString().padStart(2, '0');
+        timerVal.textContent = `${m}:${s}`;
+    }
+
+    window.onload = nextQuestion;
+</script>
+
+</body>
+</html>
